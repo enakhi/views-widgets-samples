@@ -16,6 +16,7 @@
 
 package androidx.viewpager2.integration.testapp
 
+
 import android.content.Context
 import android.util.AttributeSet
 import android.view.MotionEvent
@@ -34,6 +35,8 @@ import kotlin.math.sign
  *
  * This solution has limitations when using multiple levels of nested scrollable elements
  * (e.g. a horizontal RecyclerView in a vertical RecyclerView in a horizontal ViewPager2).
+ * 
+ * by addinng lastStatus and override requestDisallowInterceptTouchEvent above limitation will removed
  */
 class NestedScrollableHost : FrameLayout {
     constructor(context: Context) : super(context)
@@ -71,6 +74,11 @@ class NestedScrollableHost : FrameLayout {
         return super.onInterceptTouchEvent(e)
     }
 
+    override fun requestDisallowInterceptTouchEvent(disallowIntercept: Boolean) {
+        super.requestDisallowInterceptTouchEvent(disallowIntercept)
+        parent.requestDisallowInterceptTouchEvent(lastStatus)
+    }
+    var lastStatus=false
     private fun handleInterceptTouchEvent(e: MotionEvent) {
         val orientation = parentViewPager?.orientation ?: return
 
@@ -82,6 +90,7 @@ class NestedScrollableHost : FrameLayout {
         if (e.action == MotionEvent.ACTION_DOWN) {
             initialX = e.x
             initialY = e.y
+            lastStatus=true
             parent.requestDisallowInterceptTouchEvent(true)
         } else if (e.action == MotionEvent.ACTION_MOVE) {
             val dx = e.x - initialX
@@ -95,14 +104,17 @@ class NestedScrollableHost : FrameLayout {
             if (scaledDx > touchSlop || scaledDy > touchSlop) {
                 if (isVpHorizontal == (scaledDy > scaledDx)) {
                     // Gesture is perpendicular, allow all parents to intercept
+                    lastStatus=false
                     parent.requestDisallowInterceptTouchEvent(false)
                 } else {
                     // Gesture is parallel, query child if movement in that direction is possible
                     if (canChildScroll(orientation, if (isVpHorizontal) dx else dy)) {
                         // Child can scroll, disallow all parents to intercept
+                        lastStatus=true
                         parent.requestDisallowInterceptTouchEvent(true)
                     } else {
                         // Child cannot scroll, allow all parents to intercept
+                        lastStatus=false
                         parent.requestDisallowInterceptTouchEvent(false)
                     }
                 }
